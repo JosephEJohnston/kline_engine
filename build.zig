@@ -20,7 +20,7 @@ pub fn build(b: *std.Build) void {
 
     // 安装 wasm 的步骤（输出到 Next.js 目录）
     const install_wasm = b.addInstallArtifact(wasm, .{
-        .dest_dir = .{ .override = .{ .custom = "../kline-next/public/wasm" } },
+        .dest_dir = .{ .override = .{ .custom = "../../kline-web/public/wasm" } },
     });
     const wasm_step = b.step("wasm", "编译 WASM 模块");
     wasm_step.dependOn(&install_wasm.step);
@@ -65,6 +65,7 @@ fn makeWasm(
             .root_source_file = b.path("src/root.zig"), // WASM 导出逻辑在 root.zig
             .target = wasm_target,
             .optimize = optimize.*,
+            .strip = true
         })
     });
 
