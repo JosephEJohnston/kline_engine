@@ -33,19 +33,17 @@ const COMMON_BATCH_SIZE: u8 = 100;
 var last_parse_count: usize = 0;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-const totalAllocator = gpa.allocator();
+var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+const totalAllocator = arena.allocator();
 
 // 导出分配函数：让 JS 知道去哪里申请内存放 CSV 字符串
 export fn alloc_memory(len: usize) [*]u8 {
-    const slice = std.heap.page_allocator.alloc(u8, len) catch @panic("OOM");
+    const slice = totalAllocator.alloc(u8, len) catch @panic("OOM");
     return slice.ptr;
 }
 
-export fn free_memory(ptr: [*]const u8, len: usize) void {
-    // 1. 将指针和长度重新包装成切片
-    const slice = ptr[0..len];
-    // 2. 释放内存（注意：不需要 try，free 通常不会失败，除非你传错了指针）
-    totalAllocator.free(slice);
+export fn free_memory() void {
+    _ = arena.reset(.free_all);
 }
 
 export fn parse_csv_wasm(ptr: [*]const u8, len: usize) [*]Bar {
