@@ -18,12 +18,14 @@ pub fn main() !void {
 
     // 将文件写入内存
     const content = try file.readToEndAlloc(allocator, 100 * 1024 * 1024);
+    std.debug.print("content: {s}", .{content});
     defer allocator.free(content);
 
     // 计时并解析
     var timer = try std.time.Timer.start();
-    const bars = try kline_engine.parseCsv(allocator, content);
-    defer allocator.free(bars);
+    const bars: [0]kline_engine.Bar = .{};
+    // const bars = try kline_engine.parseCsv(allocator, content);
+    // defer allocator.free(bars);
     const elapsed = timer.read();
 
     // 打印性能报告
