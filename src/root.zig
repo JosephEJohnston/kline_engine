@@ -17,6 +17,15 @@ pub const Bar = struct {
     volume: f32,
 };
 
+const BarIndex = struct {
+    const time: usize = 0;
+    const open: usize = 1;
+    const high: usize = 2;
+    const low: usize = 3;
+    const close: usize = 4;
+    const volume: usize = 5;
+};
+
 const COMMON_BATCH_SIZE: u8 = 100;
 
 pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar{
@@ -52,29 +61,20 @@ pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar{
             i += 1;
         }
 
-
         const bar = Bar {
-            .time = parseDateTimeToUnix(columns[1]),
-            .open = std.fmt.parseFloat(f32, columns[2]),
+            .time = parseDateTimeToUnix(columns[BarIndex.time]),
+            .open = std.fmt.parseFloat(f32, columns[BarIndex.open]),
+            .high = std.fmt.parseFloat(f32, columns[BarIndex.high]),
+            .low = std.fmt.parseFloat(f32, columns[BarIndex.low]),
+            .close = std.fmt.parseFloat(f32, columns[BarIndex.close]),
+            .volume = std.fmt.parseFloat(f32, columns[BarIndex.volume]),
+
         };
 
         try list.append(allocator, bar);
     }
 
     return list.toOwnedSlice(allocator);
-}
-
-fn parseNext(comptime T: type, iter: *std.mem.SplitIterator(u8, .scalar)) !T {
-    const raw = iter.next()
-        orelse return error.MissingColumn;
-    const clean = std.mem
-        .trim(u8, raw, " ");
-
-    return switch (@typeInfo(T)) {
-        .int => try std.fmt.parseInt(T, clean, 10),
-        .float => try std.fmt.parseFloat(T, clean),
-        else => @compileError("不支持的类型"),
-    };
 }
 
 pub fn parseDateTimeToUnix(s: []const u8) !i64 {

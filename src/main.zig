@@ -23,9 +23,9 @@ pub fn main() !void {
 
     // 计时并解析
     var timer = try std.time.Timer.start();
-    const bars: [0]kline_engine.Bar = .{};
-    // const bars = try kline_engine.parseCsv(allocator, content);
-    // defer allocator.free(bars);
+    // const bars: [0]kline_engine.Bar = .{};
+    const bars = try kline_engine.parseCsv(allocator, content);
+    defer allocator.free(bars);
     const elapsed = timer.read();
 
     // 打印性能报告
