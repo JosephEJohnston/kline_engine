@@ -28,6 +28,39 @@ const BarIndex = struct {
 
 const COMMON_BATCH_SIZE: u8 = 100;
 
+// 导出解析函数：返回解析后的 Bar 数组指针
+// 注意：为了简单，我们把长度存给一个全局变量或通过指针返回
+var last_parse_count: usize = 0;
+
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+const totalAllocator = gpa.allocator();
+
+// 导出分配函数：让 JS 知道去哪里申请内存放 CSV 字符串
+export fn alloc_memory(len: usize) [*]u8 {
+    const slice = std.heap.page_allocator.alloc(u8, len) catch @panic("OOM");
+    return slice.ptr;
+}
+
+export fn free_memory(ptr: [*]const u8, len: usize) void {
+    // 1. 将指针和长度重新包装成切片
+    const slice = ptr[0..len];
+    // 2. 释放内存（注意：不需要 try，free 通常不会失败，除非你传错了指针）
+    totalAllocator.free(slice);
+}
+
+export fn parse_csv_wasm(ptr: [*]const u8, len: usize) [*]Bar {
+    const content = ptr[0..len];
+
+    const bars = parseCsv(totalAllocator, content) catch @panic("Parse Error");
+
+    last_parse_count = bars.len;
+    return bars.ptr;
+}
+
+export fn get_last_parse_count() usize {
+    return last_parse_count;
+}
+
 pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar {
     var list = try std.ArrayList(Bar).initCapacity(allocator, COMMON_BATCH_SIZE);
 
