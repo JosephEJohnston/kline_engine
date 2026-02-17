@@ -18,21 +18,18 @@ pub const Bar = struct {
 };
 
 const BarIndex = struct {
-    const time: usize = 0;
-    const open: usize = 1;
-    const high: usize = 2;
-    const low: usize = 3;
-    const close: usize = 4;
-    const volume: usize = 5;
+    const time: usize = 1;
+    const open: usize = 2;
+    const high: usize = 3;
+    const low: usize = 4;
+    const close: usize = 5;
+    const volume: usize = 6;
 };
 
 const COMMON_BATCH_SIZE: u8 = 100;
 
-pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar{
-    var list = try std.ArrayList(Bar).initCapacity(
-        allocator,
-        COMMON_BATCH_SIZE
-    );
+pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar {
+    var list = try std.ArrayList(Bar).initCapacity(allocator, COMMON_BATCH_SIZE);
 
     errdefer list.deinit(allocator);
 
@@ -41,6 +38,9 @@ pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar{
         .tokenizeAny(u8, content, "\n");
 
     var columns = [_][]const u8{""} ** 20;
+
+    // 去除标头
+    _ = lines.next();
 
     while (lines.next()) |line| {
         const trimmed = std.mem
@@ -52,7 +52,7 @@ pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar{
         var iter = std.mem
             .splitScalar(u8, trimmed, ',');
 
-        var i : u8 = 0;
+        var i: u8 = 0;
         while (iter.next()) |item| {
             if (i >= columns.len) {
                 break;
@@ -61,14 +61,13 @@ pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar{
             i += 1;
         }
 
-        const bar = Bar {
-            .time = parseDateTimeToUnix(columns[BarIndex.time]),
-            .open = std.fmt.parseFloat(f32, columns[BarIndex.open]),
-            .high = std.fmt.parseFloat(f32, columns[BarIndex.high]),
-            .low = std.fmt.parseFloat(f32, columns[BarIndex.low]),
-            .close = std.fmt.parseFloat(f32, columns[BarIndex.close]),
-            .volume = std.fmt.parseFloat(f32, columns[BarIndex.volume]),
-
+        const bar = Bar{
+            .time = try parseDateTimeToUnix(columns[BarIndex.time]),
+            .open = try std.fmt.parseFloat(f32, columns[BarIndex.open]),
+            .high = try std.fmt.parseFloat(f32, columns[BarIndex.high]),
+            .low = try std.fmt.parseFloat(f32, columns[BarIndex.low]),
+            .close = try std.fmt.parseFloat(f32, columns[BarIndex.close]),
+            .volume = try std.fmt.parseFloat(f32, columns[BarIndex.volume]),
         };
 
         try list.append(allocator, bar);

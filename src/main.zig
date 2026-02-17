@@ -3,7 +3,7 @@ const kline_engine = @import("kline_engine");
 
 pub fn main() !void {
     // 打开 csv 文件
-    const file_path = "./python/600000_5m.csv";
+    const file_path = "D:/Users/PC/WebstormProjects/kline_engine/python/600000_5m.csv";
     const file = std.fs.cwd().openFile(file_path, .{}) catch |e| {
         std.debug.print("❌ 错误: 找不到文件 '{s}'。请确保文件存在。\n", .{file_path});
         std.debug.print("错误详情: {}\n", .{e});
@@ -18,7 +18,7 @@ pub fn main() !void {
 
     // 将文件写入内存
     const content = try file.readToEndAlloc(allocator, 100 * 1024 * 1024);
-    std.debug.print("content: {s}", .{content});
+    // std.debug.print("content: {s}", .{content});
     defer allocator.free(content);
 
     // 计时并解析
@@ -37,10 +37,7 @@ pub fn main() !void {
 
     if (bars.len > 0) {
         const last = bars[bars.len - 1];
-        std.debug.print("💡 样例数据: Time={d}, Close={d:.2}\n", .{last.time, last.close});
+        std.debug.print("💡 样例数据: Time={d}, Close={d:.2}\n", .{ last.time, last.close });
     }
     std.debug.print("----------------------------------\n", .{});
 }
-
-
-
