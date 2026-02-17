@@ -37,8 +37,6 @@ pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar {
     var lines = std.mem
         .tokenizeAny(u8, content, "\n");
 
-    var columns = [_][]const u8{""} ** 20;
-
     // 去除标头
     _ = lines.next();
 
@@ -51,6 +49,8 @@ pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar {
 
         var iter = std.mem
             .splitScalar(u8, trimmed, ',');
+
+        var columns = [_][]const u8{""} ** 20;
 
         var i: u8 = 0;
         while (iter.next()) |item| {
