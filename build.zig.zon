@@ -4,7 +4,10 @@
     .fingerprint = 0xd574f3b503376f59,
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
-
+        .datetime = .{
+            .url = "git+https://github.com/frmdstryr/zig-datetime?ref=master#3a39a21e6e34dcb0ade0ff828d0914d40ba535f3",
+            .hash = "datetime-0.8.0-cJNXzP_YAQBxQ5hkNNP6ScnG5XsqciJmeP5RVV4xwCBA",
+        },
     },
     .paths = .{
         "build.zig",

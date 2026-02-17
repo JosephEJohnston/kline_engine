@@ -1,4 +1,5 @@
 const std = @import("std");
+const dt = @import("datetime");
 
 // 蜡烛线
 pub const Bar = struct {
@@ -30,6 +31,8 @@ pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar{
     var lines = std.mem
         .tokenizeAny(u8, content, "\n");
 
+    var columns = [_][]const u8{""} ** 20;
+
     while (lines.next()) |line| {
         const trimmed = std.mem
             .trim(u8, line, " ");
@@ -40,13 +43,19 @@ pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar{
         var iter = std.mem
             .splitScalar(u8, trimmed, ',');
 
+        var i : u8 = 0;
+        while (iter.next()) |item| {
+            if (i >= columns.len) {
+                break;
+            }
+            columns[i] = item;
+            i += 1;
+        }
+
+
         const bar = Bar {
-            .time = try parseNext(i64, &iter),
-            .open = try parseNext(f32, &iter),
-            .high = try parseNext(f32, &iter),
-            .low = try parseNext(f32, &iter),
-            .close = try parseNext(f32, &iter),
-            .volume = try parseNext(f32, &iter),
+            .time = parseDateTimeToUnix(columns[1]),
+            .open = std.fmt.parseFloat(f32, columns[2]),
         };
 
         try list.append(allocator, bar);
@@ -68,3 +77,28 @@ fn parseNext(comptime T: type, iter: *std.mem.SplitIterator(u8, .scalar)) !T {
     };
 }
 
+pub fn parseDateTimeToUnix(s: []const u8) !i64 {
+    // 基本长度校验
+    if (s.len < 19) return error.InvalidFormat;
+
+    // 1. 提取数字 (极其快速，因为下标是固定的)
+    const year = try std.fmt.parseInt(i32, s[0..4], 10);
+    const month = try std.fmt.parseInt(i32, s[5..7], 10);
+    const day = try std.fmt.parseInt(i32, s[8..10], 10);
+    const hour = try std.fmt.parseInt(i64, s[11..13], 10);
+    const min = try std.fmt.parseInt(i64, s[14..16], 10);
+    const sec = try std.fmt.parseInt(i64, s[17..19], 10);
+
+    // 2. 计算日期部分的 Unix Days
+    // 这个算法来自 http://howardhinnant.github.io/date_algorithms.html
+    const y: i32 = year - @intFromBool(month <= 2);
+    const m: u32 = if (month > 2) @intCast(month - 3) else @intCast(month + 9);
+    const era = @divFloor(y, 400);
+    const yoe = @as(u32, @intCast(y - era * 400));
+    const doy = (153 * m + 2) / 5 + @as(u32, @intCast(day)) - 1;
+    const doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    const days = era * 146097 + @as(i64, @intCast(doe)) - 719468;
+
+    // 3. 组合成秒
+    return days * 86400 + hour * 3600 + min * 60 + sec;
+}
