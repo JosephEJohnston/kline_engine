@@ -6,13 +6,7 @@ pub fn build(b: *std.Build) void {
 
     const optimize = b.standardOptimizeOption(.{});
 
-    const mod = b.addModule("kline_engine", .{
-
-        .root_source_file = b.path("src/root.zig"),
-        // Later on we'll use this module as the root module of a test executable
-        // which requires us to specify a target.
-        .target = target,
-    });
+    const mod = makeMod(b, &target);
 
     const exe = makeExe(b, &target, &optimize, mod);
 
@@ -46,6 +40,19 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
 
+}
+
+fn makeMod(
+    b: *std.Build,
+    target: *const std.Build.ResolvedTarget
+) *std.Build.Module {
+    return b.addModule("kline_engine", .{
+
+        .root_source_file = b.path("src/root.zig"),
+        // Later on we'll use this module as the root module of a test executable
+        // which requires us to specify a target.
+        .target = target.*,
+    });
 }
 
 fn makeExe(
