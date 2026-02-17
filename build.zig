@@ -2,19 +2,28 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
 
-    const target = b.standardTargetOptions(.{});
+    const navtive_target = b.standardTargetOptions(.{});
 
     const optimize = b.standardOptimizeOption(.{});
 
-    const mod = makeMod(b, &target);
+    const mod = makeMod(b, &navtive_target);
 
-    const exe = makeExe(b, &target, &optimize, mod);
+    const exe = makeExe(b, &navtive_target, &optimize, mod);
 
     b.installArtifact(exe);
     const run_cmd = b.addRunArtifact(exe);
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+
+    const wasm = makeWasm(b, &optimize);
+
+    // 安装 wasm 的步骤（输出到 Next.js 目录）
+    const install_wasm = b.addInstallArtifact(wasm, .{
+        .dest_dir = .{ .override = .{ .custom = "../kline-next/public/wasm" } },
+    });
+    const wasm_step = b.step("wasm", "编译 WASM 模块");
+    wasm_step.dependOn(&install_wasm.step);
 
     run_cmd.step.dependOn(b.getInstallStep());
 
@@ -40,6 +49,30 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
 
+}
+
+fn makeWasm(
+    b: *std.Build,
+    optimize: *const std.builtin.OptimizeMode,
+) *std.Build.Step.Compile {
+    const wasm_target = b.resolveTargetQuery(.{
+        .cpu_arch = .wasm32,
+        .os_tag = .freestanding,
+    });
+    const wasm = b.addExecutable(.{
+        .name = "kline_engine",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/root.zig"), // WASM 导出逻辑在 root.zig
+            .target = wasm_target,
+            .optimize = optimize.*,
+        })
+    });
+
+    // WASM 特有配置
+    wasm.entry = .disabled;
+    wasm.rdynamic = true;
+
+    return wasm;
 }
 
 fn makeMod(
