@@ -14,28 +14,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
-    const exe = b.addExecutable(.{
-        .name = "kline_engine",
-        .root_module = b.createModule(.{
-
-            .root_source_file = b.path("src/main.zig"),
-
-            .target = target,
-            .optimize = optimize,
-            // List of modules available for import in source files part of the
-            // root module.
-            .imports = &.{
-
-                .{ .name = "kline_engine", .module = mod },
-            },
-        }),
-    });
+    const exe = makeExe(b, &target, &optimize, mod);
 
     b.installArtifact(exe);
+    const run_cmd = b.addRunArtifact(exe);
 
     const run_step = b.step("run", "Run the app");
-
-    const run_cmd = b.addRunArtifact(exe);
     run_step.dependOn(&run_cmd.step);
 
     run_cmd.step.dependOn(b.getInstallStep());
@@ -62,4 +46,27 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
 
+}
+
+fn makeExe(
+    b: *std.Build,
+    target: *const std.Build.ResolvedTarget,
+    optimize: *const std.builtin.OptimizeMode,
+    mod: *std.Build.Module
+) *std.Build.Step.Compile {
+    return b.addExecutable(.{
+        .name = "kline_engine",
+        .root_module = b.createModule(.{
+
+            .root_source_file = b.path("src/main.zig"),
+
+            .target = target.*,
+            .optimize = optimize.*,
+            // List of modules available for import in source files part of the
+            // root module.
+            .imports = &.{
+                .{ .name = "kline_engine", .module = mod },
+            },
+        }),
+    });
 }
