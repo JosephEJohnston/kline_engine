@@ -53,8 +53,11 @@ export fn parse_csv_wasm(
 ) [*]Bar {
     const content = ptr[0..len];
 
-    const bars = parseCsv(totalAllocator, content, config)
-        catch @panic("Parse Error");
+    const bars = parseCsv(totalAllocator, content, config) catch |err| {
+        // 如果出错，打印错误类型（需要配置 std.log，详见下方）
+        std.debug.print("Parse Error: {s}\n", .{@errorName(err)});
+        @panic("Check console for error name");
+    };
 
     last_parse_count = bars.len;
     return bars.ptr;
