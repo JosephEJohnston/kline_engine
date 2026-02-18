@@ -16,13 +16,14 @@ pub const Bar = struct {
     volume: f32,
 };
 
-const BarIndex = struct {
-    const time: usize = 1;
-    const open: usize = 2;
-    const high: usize = 3;
-    const low: usize = 4;
-    const close: usize = 5;
-    const volume: usize = 6;
+// 6 个字段 * 4 字节 = 24 字节的固定内存块
+pub const ParseConfig = extern struct {
+    time_idx: i32 = -1,
+    open_idx: i32 = -1,
+    high_idx: i32 = -1,
+    low_idx: i32 = -1,
+    close_idx: i32 = -1,
+    volume_idx: i32 = -1,
 };
 
 const COMMON_BATCH_SIZE: u8 = 100;
@@ -45,10 +46,15 @@ export fn free_memory() void {
     _ = arena.reset(.free_all);
 }
 
-export fn parse_csv_wasm(ptr: [*]const u8, len: usize) [*]Bar {
+export fn parse_csv_wasm(
+    ptr: [*]const u8,
+    len: usize,
+    config: ParseConfig
+) [*]Bar {
     const content = ptr[0..len];
 
-    const bars = parseCsv(totalAllocator, content) catch @panic("Parse Error");
+    const bars = parseCsv(totalAllocator, content, config)
+        catch @panic("Parse Error");
 
     last_parse_count = bars.len;
     return bars.ptr;
@@ -58,7 +64,11 @@ export fn get_last_parse_count() usize {
     return last_parse_count;
 }
 
-pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar {
+pub fn parseCsv(
+    allocator: std.mem.Allocator,
+    content: []const u8,
+    config: ParseConfig
+) ![]Bar {
     var list = try std.ArrayList(Bar).initCapacity(allocator, COMMON_BATCH_SIZE);
 
     errdefer list.deinit(allocator);
@@ -92,18 +102,33 @@ pub fn parseCsv(allocator: std.mem.Allocator, content: []const u8) ![]Bar {
         }
 
         const bar = Bar{
-            .time = try parseDateTimeToUnix(columns[BarIndex.time]),
-            .open = try std.fmt.parseFloat(f32, columns[BarIndex.open]),
-            .high = try std.fmt.parseFloat(f32, columns[BarIndex.high]),
-            .low = try std.fmt.parseFloat(f32, columns[BarIndex.low]),
-            .close = try std.fmt.parseFloat(f32, columns[BarIndex.close]),
-            .volume = try std.fmt.parseFloat(f32, columns[BarIndex.volume]),
+            // 时间处理：如果索引有效则解析，否则设为 0
+            .time = if (config.time_idx >= 0)
+                try parseDateTimeToUnix(columns[@intCast(config.time_idx)])
+            else 0,
+            .open   = try parseOptionalFloat(columns, config.open_idx),
+            .high   = try parseOptionalFloat(columns, config.high_idx),
+            .low    = try parseOptionalFloat(columns, config.low_idx),
+            .close  = try parseOptionalFloat(columns, config.close_idx),
+            .volume = try parseOptionalFloat(columns, config.volume_idx),
         };
 
         try list.append(allocator, bar);
     }
 
     return list.toOwnedSlice(allocator);
+}
+
+fn parseOptionalFloat(columns: [][]const u8, index: i32) !f32 {
+    if (index < 0) {
+        return 0.0;
+    }
+    const col_idx: usize = @intCast(index);
+    // 检查列是否存在，防止越界
+    if (col_idx >= columns.len) {
+        return 0.0;
+    }
+    return std.fmt.parseFloat(f32, columns[col_idx]);
 }
 
 pub fn parseDateTimeToUnix(s: []const u8) !i64 {
