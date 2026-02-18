@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 // 蜡烛线
 pub const Bar = struct {
@@ -36,6 +37,18 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var arena = std.heap.ArenaAllocator.init(gpa.allocator());
 const totalAllocator = arena.allocator();
 
+// 告诉 Zig：这个函数的实现在 JS 那头
+extern fn js_log_err(ptr: [*]const u8, len: usize) void;
+
+// 写一个包装函数，方便调用
+fn logDebug(comptime fmt: []const u8, args: anytype) void {
+    if (builtin.mode == .Debug) {
+        var buf: [256]u8 = undefined;
+        const msg = std.fmt.bufPrint(&buf, fmt, args) catch return;
+        js_log_err(msg.ptr, msg.len);
+    }
+}
+
 // 导出分配函数：让 JS 知道去哪里申请内存放 CSV 字符串
 export fn alloc_memory(len: usize) [*]u8 {
     const slice = totalAllocator.alloc(u8, len) catch @panic("OOM");
@@ -49,9 +62,23 @@ export fn free_memory() void {
 export fn parse_csv_wasm(
     ptr: [*]const u8,
     len: usize,
-    config: ParseConfig
+    time_idx: i32,   // 直接接收参数，不要包在 struct 里
+    open_idx: i32,
+    high_idx: i32,
+    low_idx: i32,
+    close_idx: i32,
+    volume_idx: i32
 ) [*]Bar {
     const content = ptr[0..len];
+
+    const config = ParseConfig{
+        .time_idx = time_idx,
+        .open_idx = open_idx,
+        .high_idx = high_idx,
+        .low_idx = low_idx,
+        .close_idx = close_idx,
+        .volume_idx = volume_idx,
+    };
 
     const bars = parseCsv(totalAllocator, content, config)
         catch @panic("Check console for error name");
@@ -98,8 +125,12 @@ pub fn parseCsv(
                 break;
             }
             columns[i] = item;
+            logDebug("Parsing time column item, item : {s}, index : {d} .", .{item, i});
+
             i += 1;
         }
+
+        logDebug("Parsing time column, column : {s} .", .{line});
 
         const bar = Bar{
             // 时间处理：如果索引有效则解析，否则设为 0
@@ -112,6 +143,8 @@ pub fn parseCsv(
             .close  = try parseOptionalFloat(&columns, config.close_idx),
             .volume = try parseOptionalFloat(&columns, config.volume_idx),
         };
+
+        logDebug("Line parsed successfully.", .{});
 
         try list.append(allocator, bar);
     }
@@ -132,6 +165,8 @@ fn parseOptionalFloat(columns: [][]const u8, index: i32) !f32 {
 }
 
 pub fn parseDateTimeToUnix(s: []const u8) !i64 {
+    logDebug("parseDateTimeToUnix, item : {s} .", .{s});
+
     // 基本长度校验
     if (s.len < 19) return error.InvalidFormat;
 

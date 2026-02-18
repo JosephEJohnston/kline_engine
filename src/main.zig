@@ -28,8 +28,8 @@ pub fn main() !void {
     const bars = try kline_engine.parseCsv(allocator, content, .{
         .time_idx = 1,
         .open_idx = 2,
-        .high_idx = 3,
-        .low_idx = 4,
+        .high_idx = 4,
+        .low_idx = 3,
         .close_idx = 5,
         .volume_idx = 8,
     });
