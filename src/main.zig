@@ -24,7 +24,14 @@ pub fn main() !void {
     // 计时并解析
     var timer = try std.time.Timer.start();
     // const bars: [0]kline_engine.Bar = .{};
-    const bars = try kline_engine.parseCsv(allocator, content);
+    const bars = try kline_engine.parseCsv(allocator, content, .{
+        .time_idx = 1,
+        .open_idx = 2,
+        .high_idx = 3,
+        .low_idx = 4,
+        .close_idx = 5,
+        .volume_idx = 6,
+    });
     defer allocator.free(bars);
     const elapsed = timer.read();
 

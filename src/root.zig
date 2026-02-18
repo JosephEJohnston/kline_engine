@@ -106,11 +106,11 @@ pub fn parseCsv(
             .time = if (config.time_idx >= 0)
                 try parseDateTimeToUnix(columns[@intCast(config.time_idx)])
             else 0,
-            .open   = try parseOptionalFloat(columns, config.open_idx),
-            .high   = try parseOptionalFloat(columns, config.high_idx),
-            .low    = try parseOptionalFloat(columns, config.low_idx),
-            .close  = try parseOptionalFloat(columns, config.close_idx),
-            .volume = try parseOptionalFloat(columns, config.volume_idx),
+            .open   = try parseOptionalFloat(&columns, config.open_idx),
+            .high   = try parseOptionalFloat(&columns, config.high_idx),
+            .low    = try parseOptionalFloat(&columns, config.low_idx),
+            .close  = try parseOptionalFloat(&columns, config.close_idx),
+            .volume = try parseOptionalFloat(&columns, config.volume_idx),
         };
 
         try list.append(allocator, bar);
