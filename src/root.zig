@@ -38,14 +38,26 @@ var arena = std.heap.ArenaAllocator.init(gpa.allocator());
 const totalAllocator = arena.allocator();
 
 // 告诉 Zig：这个函数的实现在 JS 那头
-extern fn js_log_err(ptr: [*]const u8, len: usize) void;
+// 只有在目标是 WASM 时才声明 extern 函数
+const js_log_err = if (builtin.target.cpu.arch == .wasm32)
+    struct { extern fn js_log_err(ptr: [*]const u8, len: usize) void; }.js_log_err
+else null;
 
 // 写一个包装函数，方便调用
 fn logDebug(comptime fmt: []const u8, args: anytype) void {
     if (builtin.mode == .Debug) {
-        var buf: [256]u8 = undefined;
-        const msg = std.fmt.bufPrint(&buf, fmt, args) catch return;
-        js_log_err(msg.ptr, msg.len);
+        if (builtin.target.cpu.arch == .wasm32) {
+            // 如果是 WASM，调用 JS 函数
+        if (js_log_err) {
+                var buf: [256]u8 = undefined;
+                const msg = std.fmt.bufPrint(&buf, fmt, args) catch return;
+                js_log_err(msg.ptr, msg.len);
+            }
+        } else {
+            // 如果是本地 Native 环境，直接打印到终端
+        std.debug.print(fmt, args);
+            std.debug.print("\n", .{});
+        }
     }
 }
 
@@ -109,7 +121,7 @@ pub fn parseCsv(
 
     while (lines.next()) |line| {
         const trimmed = std.mem
-            .trim(u8, line, " ");
+            .trim(u8, line, " \t\r\n");
         if (trimmed.len == 0) {
             continue;
         }
@@ -125,12 +137,12 @@ pub fn parseCsv(
                 break;
             }
             columns[i] = item;
-            logDebug("Parsing time column item, item : {s}, index : {d} .", .{item, i});
+            logDebug("Parsing column item, item : {s}, index : {d} .", .{item, i});
 
             i += 1;
         }
 
-        logDebug("Parsing time column, column : {s} .", .{line});
+        logDebug("Parsing column, column : {s} .", .{line});
 
         const bar = Bar{
             // 时间处理：如果索引有效则解析，否则设为 0
@@ -161,6 +173,9 @@ fn parseOptionalFloat(columns: [][]const u8, index: i32) !f32 {
     if (col_idx >= columns.len) {
         return 0.0;
     }
+
+    logDebug("parseOptionalFloat, item : {s} .", .{columns[col_idx]});
+
     return std.fmt.parseFloat(f32, columns[col_idx]);
 }
 

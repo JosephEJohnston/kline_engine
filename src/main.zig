@@ -4,7 +4,7 @@ const kline_engine = @import("kline_engine");
 pub fn main() !void {
     // 打开 csv 文件
     // const file_path = "D:/Users/PC/WebstormProjects/kline_engine/python/600000_5m.csv";
-    const file_path = "C:/Users/PC/Desktop/600000_5m.csv";
+    const file_path = "C:/Users/PC/Desktop/sh600751.csv";
     const file = std.fs.cwd().openFile(file_path, .{}) catch |e| {
         std.debug.print("❌ 错误: 找不到文件 '{s}'。请确保文件存在。\n", .{file_path});
         std.debug.print("错误详情: {}\n", .{e});
@@ -28,10 +28,10 @@ pub fn main() !void {
     const bars = try kline_engine.parseCsv(allocator, content, .{
         .time_idx = 1,
         .open_idx = 2,
-        .high_idx = 4,
-        .low_idx = 3,
+        .high_idx = 3,
+        .low_idx = 4,
         .close_idx = 5,
-        .volume_idx = 8,
+        .volume_idx = 6,
     });
     defer allocator.free(bars);
     const elapsed = timer.read();
