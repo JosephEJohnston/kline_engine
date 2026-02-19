@@ -25,27 +25,24 @@ pub fn main() !void {
     // 计时并解析
     var timer = try std.time.Timer.start();
     // const bars: [0]kline_engine.Bar = .{};
-    const bars = try kline_engine.parseCsv(allocator, content, .{
-        .time_idx = 1,
-        .open_idx = 2,
-        .high_idx = 3,
-        .low_idx = 4,
-        .close_idx = 5,
-        .volume_idx = 6,
-    });
-    defer allocator.free(bars);
+    _ = kline_engine.parse_csv_wasm(content.ptr, content.len,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+    );
+    defer kline_engine.free_memory();
+
     const elapsed = timer.read();
 
     // 打印性能报告
     const ms = @as(f64, @floatFromInt(elapsed)) / std.time.ns_per_ms;
     std.debug.print("\n----------------------------------\n", .{});
     std.debug.print("✅ Zig 引擎解析完成!\n", .{});
-    std.debug.print("📊 记录总数: {d} 行\n", .{bars.len});
+    std.debug.print("📊 记录总数: {d} 行\n", .{content.len});
     std.debug.print("⏱️ 耗时: {d:.3} ms\n", .{ms});
 
-    if (bars.len > 0) {
-        const last = bars[bars.len - 1];
-        std.debug.print("💡 样例数据: Time={d}, Close={d:.2}\n", .{ last.time, last.close });
-    }
     std.debug.print("----------------------------------\n", .{});
 }
