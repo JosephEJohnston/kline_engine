@@ -48,8 +48,6 @@ pub export fn parse_csv_wasm(
     const bars = pc.parseCsv(totalAllocator, content, config)
         catch @panic("Check console for error name");
 
-    calculate_ema(bars.ptr, bars.len, 20);
-
     last_parse_count = bars.len;
     return bars.ptr;
 }
@@ -58,6 +56,11 @@ export fn get_last_parse_count() usize {
     return last_parse_count;
 }
 
-export fn calculate_ema(bars_ptr: [*]Bar, bars_len: usize, period: usize) void {
-    indicator.calculate_ema(bars_ptr, bars_len, period);
+export fn calculate_ema(
+    bars_ptr: [*]Bar,
+    bars_len: usize,
+    period: usize,
+    output_ptr: [*]f32
+) void {
+    indicator.calculate_ema(bars_ptr, bars_len, period, output_ptr);
 }

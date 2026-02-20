@@ -57,7 +57,6 @@ pub fn parseCsv(
             .low   = try parseOptionalFloat(&columns, config.low_idx),
             .close = try parseOptionalFloat(&columns, config.close_idx),
             .volume= try parseOptionalFloat(&columns, config.volume_idx),
-            .ema20 = 0.0,
         };
 
         js.logDebug("Line parsed successfully.", .{});

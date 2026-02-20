@@ -12,7 +12,8 @@ pub const Bar = struct {
     close: f32,
     // 交易量
     volume: f32,
-    ema20: f32,
+    // 偏移量填充
+    _pad: f32 = 0,
 };
 
 // 编译时检查，确保万无一失
