@@ -6,6 +6,9 @@ pub const Flags = struct {
     pub const FLAG_TREND_DOWN: u8 = 0b00000010;
     pub const FLAG_DOJI:       u8 = 0b00000100;
     pub const FLAG_INSIDE:     u8 = 0b00001000;
+
+    pub const FLAG_TOUCH_EMA:  u8 = 0b00010000; // 16: 触碰 EMA20
+    pub const FLAG_GAP_BAR:    u8 = 0b00100000; // 32: 缺口棒 (与均线完全脱离)
 };
 
 pub fn extract_bar_attributes(
