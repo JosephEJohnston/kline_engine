@@ -33,6 +33,18 @@ pub const QuantContext = struct {
                 .volume = self.volume[index],
             };
     }
+
+    pub inline fn receiveBar(self: *QuantContext, index: usize, bar: Bar) void {
+        // 安全起见，这里可以加个断言，毕竟你现在是精准申请内存
+        std.debug.assert(index < self.count);
+
+        self.time[index] = bar.time;
+        self.open[index] = bar.open;
+        self.high[index] = bar.high;
+        self.low[index] = bar.low;
+        self.close[index] = bar.close;
+        self.volume[index] = bar.volume;
+    }
 };
 
 pub fn create_context(allocator: std.mem.Allocator, count: usize) !*QuantContext {

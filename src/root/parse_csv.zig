@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const js = @import("js.zig");
 const Bar = @import("bar.zig").Bar;
 const ParseConfig = @import("bar.zig").ParseConfig;
+const qc = @import("quant_context.zig");
 
 const COMMON_BATCH_SIZE: u8 = 100;
 
@@ -10,18 +11,20 @@ pub fn parseCsv(
     allocator: std.mem.Allocator,
     content: []const u8,
     config: ParseConfig
-) ![]Bar {
-    var list = try std.ArrayList(Bar).initCapacity(allocator, COMMON_BATCH_SIZE);
+) !*qc.QuantContext {
+    const lc = get_line_count(content);
 
-    errdefer list.deinit(allocator);
+    var quantContext = try qc
+        .create_context(allocator, lc);
 
     // 按行切分
     var lines = std.mem
-    .tokenizeAny(u8, content, "\n");
+        .tokenizeAny(u8, content, "\n");
 
     // 去除标头
     _ = lines.next();
 
+    var lineIndex: usize = 0;
     while (lines.next()) |line| {
         const trimmed = std.mem
         .trim(u8, line, " \t\r\n");
@@ -61,10 +64,21 @@ pub fn parseCsv(
 
         js.logDebug("Line parsed successfully.", .{});
 
-        try list.append(allocator, bar);
+        quantContext.receiveBar(lineIndex, bar);
+
+        lineIndex += 1;
     }
 
-    return list.toOwnedSlice(allocator);
+    return quantContext;
+}
+
+pub fn get_line_count(content: []const u8) usize {
+    // 直接统计换行符的数量，速度极快
+    const total_newlines = std.mem.count(u8, content, "\n");
+
+    // 如果最后一行没有换行符，通常需要根据具体 CSV 情况处理
+    // 但对于大部分标准 CSV，这个数量减去 1（标头）就是数据行数
+    return total_newlines;
 }
 
 fn parseOptionalFloat(columns: [][]const u8, index: i32) !f32 {

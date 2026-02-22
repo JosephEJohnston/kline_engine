@@ -26,6 +26,7 @@ pub export fn free_memory() void {
 }
 
 pub export fn parse_csv_wasm(
+    // csv 内容数组
     ptr: [*]const u8,
     len: usize,
     time_idx: i32,   // 直接接收参数，不要包在 struct 里
@@ -49,7 +50,7 @@ pub export fn parse_csv_wasm(
     const bars = pc.parseCsv(totalAllocator, content, config)
         catch @panic("Check console for error name");
 
-    last_parse_count = bars.len;
+    last_parse_count = bars.capacity;
     return bars.ptr;
 }
 
