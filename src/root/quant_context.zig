@@ -109,7 +109,11 @@ pub fn create_context(allocator: std.mem.Allocator, count: usize) !*QuantContext
     const total_bytes = time_size + (float_size * 5) + attr_size;
 
     // 2. 一次性申请整块内存
-    const raw_mem = try allocator.alloc(u8, total_bytes);
+    const raw_mem = try allocator.alignedAlloc(
+        u8,
+        std.mem.Alignment.@"8",
+        total_bytes
+    );
     const base = raw_mem.ptr;
 
     // 3. 为结构体本身申请空间
