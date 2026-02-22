@@ -6,6 +6,7 @@ const pc = @import("root/parse_csv.zig");
 const Bar = @import("root/bar.zig").Bar;
 const ParseConfig = @import("root/bar.zig").ParseConfig;
 const analyzer = @import("root/analyzer.zig");
+const QuantContext = @import("root/quant_context.zig").QuantContext;
 
 // 导出解析函数：返回解析后的 Bar 数组指针
 // 注意：为了简单，我们把长度存给一个全局变量或通过指针返回
@@ -35,7 +36,7 @@ pub export fn parse_csv_wasm(
     low_idx: i32,
     close_idx: i32,
     volume_idx: i32
-) [*]Bar {
+) *QuantContext {
     const content = ptr[0..len];
 
     const config = ParseConfig{
@@ -51,7 +52,7 @@ pub export fn parse_csv_wasm(
         catch @panic("Check console for error name");
 
     last_parse_count = bars.capacity;
-    return bars.ptr;
+    return bars;
 }
 
 export fn get_last_parse_count() usize {
