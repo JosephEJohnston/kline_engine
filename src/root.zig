@@ -60,12 +60,11 @@ export fn get_last_parse_count() usize {
 }
 
 export fn calculate_ema(
-    bars_ptr: [*]Bar,
-    bars_len: usize,
+    ctx: *const QuantContext, // 传入 context 引用
     period: usize,
     output_ptr: [*]f32
 ) void {
-    indicator.calculate_ema(bars_ptr, bars_len, period, output_ptr);
+    indicator.calculate_ema(ctx, period, output_ptr);
 }
 
 pub export fn run_analysis(

@@ -27,13 +27,13 @@ pub fn parseCsv(
     var lineIndex: usize = 0;
     while (lines.next()) |line| {
         const trimmed = std.mem
-        .trim(u8, line, " \t\r\n");
+            .trim(u8, line, " \t\r\n");
         if (trimmed.len == 0) {
             continue;
         }
 
         var iter = std.mem
-        .splitScalar(u8, trimmed, ',');
+            .splitScalar(u8, trimmed, ',');
 
         var columns = [_][]const u8{""} ** 20;
 

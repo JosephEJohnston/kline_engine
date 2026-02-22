@@ -45,6 +45,58 @@ pub const QuantContext = struct {
         self.close[index] = bar.close;
         self.volume[index] = bar.volume;
     }
+
+    // --- 1. 单点读取 (Single Element Getters) ---
+    // 适合在 UI 渲染或编写单根 K 线逻辑时使用
+
+    pub inline fn getOpen(self: QuantContext, index: usize) f32 {
+        std.debug.assert(index < self.count);
+        return self.open[index];
+    }
+
+    pub inline fn getHigh(self: QuantContext, index: usize) f32 {
+        std.debug.assert(index < self.count);
+        return self.high[index];
+    }
+
+    pub inline fn getLow(self: QuantContext, index: usize) f32 {
+        std.debug.assert(index < self.count);
+        return self.low[index];
+    }
+
+    pub inline fn getClose(self: QuantContext, index: usize) f32 {
+        std.debug.assert(index < self.count);
+        return self.close[index];
+    }
+
+    pub inline fn getTime(self: QuantContext, index: usize) i64 {
+        std.debug.assert(index < self.count);
+        return self.time[index];
+    }
+
+    // --- 2. 切片读取 (Slice Getters) ---
+    // 🌟 这才是量化引擎的“重型火力”。
+    // 返回切片允许编译器进行 SIMD 优化，适合计算 EMA 或进行批量 PA 形态扫描。
+
+    pub inline fn getOpenSlice(self: QuantContext) []f32 {
+        return self.open[0..self.count];
+    }
+
+    pub inline fn getHighSlice(self: QuantContext) []f32 {
+        return self.high[0..self.count];
+    }
+
+    pub inline fn getLowSlice(self: QuantContext) []f32 {
+        return self.low[0..self.count];
+    }
+
+    pub inline fn getCloseSlice(self: QuantContext) []f32 {
+        return self.close[0..self.count];
+    }
+
+    pub inline fn getTimeSlice(self: QuantContext) []i64 {
+        return self.time[0..self.count];
+    }
 };
 
 pub fn create_context(allocator: std.mem.Allocator, count: usize) !*QuantContext {
