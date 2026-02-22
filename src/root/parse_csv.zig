@@ -69,6 +69,7 @@ pub fn parseCsv(
         lineIndex += 1;
     }
 
+    quantContext.count = lineIndex;
     return quantContext;
 }
 
