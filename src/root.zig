@@ -68,23 +68,31 @@ export fn calculate_ema(
 }
 
 pub export fn run_analysis(
-    // 传入k线数组指针，这里将其视为 4 字节步长的指针
-    bars_ptr: [*]f32,
-    out_ptr: [*]u8,       // 🌟 独立传入的输出数组指针
-    count: usize
+    ctx: *QuantContext // 🌟 直接传入上下文指针
 ) void {
-    const o_ptr = bars_ptr;
-    const h_ptr = bars_ptr + count;
-    const l_ptr = bars_ptr + 2 * count;
-    const c_ptr = bars_ptr + 3 * count;
+    // 1. 自动从 ctx 中提取已有的 count
+    const count = ctx.count;
+    if (count == 0) return;
 
-    // 直接调用你的分析模块，参数一一对应
+    // 2. 利用你写的 inline getters 获取数据切片
+    // 这样你就再也不用手动去算 bars_ptr + count * 2 这种容易出错的偏移了
+    const o = ctx.getOpenSlice();
+    const h = ctx.getHighSlice();
+    const l = ctx.getLowSlice();
+    const c = ctx.getCloseSlice();
+
+    // 3. 结果存储：直接使用 ctx 内部预留的 attributes 空间
+    // 如果你依然想用外部传入的 out_ptr，也可以保留参数，但内部 attributes 通常更整洁
+    const out = ctx.attributes[0..count];
+
+    // 4. 调用分析模块
+    // 既然在写 Zig，我们可以直接传 Slice，让 analyzer 内部处理更安全
     analyzer.extract_bar_attributes(
-        o_ptr,
-        h_ptr,
-        l_ptr,
-        c_ptr,
+        o.ptr,
+        h.ptr,
+        l.ptr,
+        c.ptr,
         count,
-        out_ptr
+        out.ptr
     );
 }
