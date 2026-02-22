@@ -51,7 +51,7 @@ pub export fn parse_csv_wasm(
     const bars = pc.parseCsv(totalAllocator, content, config)
         catch @panic("Check console for error name");
 
-    last_parse_count = bars.capacity;
+    last_parse_count = bars.count;
     return bars;
 }
 
