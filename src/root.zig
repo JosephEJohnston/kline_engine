@@ -5,6 +5,7 @@ const indicator = @import("root/indicator.zig");
 const pc = @import("root/parse_csv.zig");
 const Bar = @import("root/bar.zig").Bar;
 const ParseConfig = @import("root/bar.zig").ParseConfig;
+const analyzer = @import("root/analyzer.zig");
 
 // 导出解析函数：返回解析后的 Bar 数组指针
 // 注意：为了简单，我们把长度存给一个全局变量或通过指针返回
@@ -63,4 +64,26 @@ export fn calculate_ema(
     output_ptr: [*]f32
 ) void {
     indicator.calculate_ema(bars_ptr, bars_len, period, output_ptr);
+}
+
+pub export fn run_analysis(
+    // 传入k线数组指针，这里将其视为 4 字节步长的指针
+    bars_ptr: [*]f32,
+    out_ptr: [*]u8,       // 🌟 独立传入的输出数组指针
+    count: usize
+) void {
+    const o_ptr = bars_ptr;
+    const h_ptr = bars_ptr + count;
+    const l_ptr = bars_ptr + 2 * count;
+    const c_ptr = bars_ptr + 3 * count;
+
+    // 直接调用你的分析模块，参数一一对应
+    analyzer.extract_bar_attributes(
+        o_ptr,
+        h_ptr,
+        l_ptr,
+        c_ptr,
+        count,
+        out_ptr
+    );
 }
