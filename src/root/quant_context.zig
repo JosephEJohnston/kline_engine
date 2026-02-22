@@ -111,7 +111,7 @@ pub fn create_context(allocator: std.mem.Allocator, count: usize) !*QuantContext
     // 2. 一次性申请整块内存
     const raw_mem = try allocator.alignedAlloc(
         u8,
-        std.mem.Alignment.@"8",
+        std.mem.Alignment.@"16",
         total_bytes
     );
     const base = raw_mem.ptr;
