@@ -2,53 +2,47 @@ const QuantContext = @import("../quant_context.zig").QuantContext;
 const BacktestResult = @import("backtest_result.zig").BacktestResult;
 const Flags = @import("../analyzer.zig").Flags;
 
-pub fn consecutive_trend_up(
+pub fn backtest_consecutive_trend_up(
     ctx: *QuantContext,
-    comptime n: usize
-) BacktestResult {
-    var result = BacktestResult{};
-    var up_count: usize = 0;
-    var current_max_profit: f32 = 0.0;
-    var running_equity: f32 = 0.0;
+    comptime n: usize,
+    result: *BacktestResult, // 传入预分配好的结果集
+) void {
+    var up_streak: usize = 0;
+    var current_equity: f32 = 0.0;
+    var peak_equity: f32 = 0.0;
 
     for (0..ctx.count) |i| {
         const attr = ctx.attributes[i];
 
-        // 1. 识别逻辑：是否符合 FLAG_TREND_UP
+        // 1. 判断是否符合强阳线标志
         if ((attr & Flags.FLAG_TREND_UP) != 0) {
-            up_count += 1;
+            up_streak += 1;
         } else {
-            up_count = 0;
+            up_streak = 0;
         }
 
-        // 2. 信号触发：当达到连续 N 根时
-        // 注意：i+1 不能越界，因为我们要看下一根的表现
-        if (up_count >= n and i + 1 < ctx.count) {
-            result.total_trades += 1;
+        // 2. 触发信号：连续 N 根阳线，且下一根 K 线存在
+        if (up_streak >= n and i + 1 < ctx.count) {
+            const entry_idx = i + 1;
+            const exit_idx  = i + 1;
+            const entry_p   = ctx.open[entry_idx];
+            const exit_p    = ctx.close[exit_idx];
 
-            // 假设逻辑：下根开盘买入，收盘卖出
-            const entry_price = ctx.open[i + 1];
-            const exit_price = ctx.close[i + 1];
-            const profit = exit_price - entry_price;
+            // 记录交易
+            result.addTrade(entry_idx, exit_idx, entry_p, exit_p);
 
-            result.total_profit += profit;
-            if (profit > 0) result.win_count += 1;
-
-            // 3. 简单的回撤计算逻辑
-            running_equity += profit;
-            if (running_equity > current_max_profit) {
-                current_max_profit = running_equity;
+            // 3. 计算回撤 (Max Drawdown)
+            current_equity += (exit_p - entry_p);
+            if (current_equity > peak_equity) {
+                peak_equity = current_equity;
             }
-            const dd = current_max_profit - running_equity;
+            const dd = peak_equity - current_equity;
             if (dd > result.max_drawdown) {
                 result.max_drawdown = dd;
             }
 
-            // 避免在同一串阳线中重复触发，重置计数器
-            // 这样如果你设 N=3，第 3 根触发后，第 4 根重新开始算
-            up_count = 0;
+            // 为了不让信号重叠，触发后重置计数器
+            up_streak = 0;
         }
     }
-
-    return result;
 }
