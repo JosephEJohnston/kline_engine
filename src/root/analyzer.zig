@@ -1,4 +1,5 @@
 const std = @import("std");
+const QuantContext = @import("quant_context.zig").QuantContext;
 
 // 定义属性标志位
 pub const Flags = struct {
@@ -10,6 +11,56 @@ pub const Flags = struct {
     pub const FLAG_TOUCH_EMA:  u8 = 0b00010000; // 16: 触碰 EMA20
     pub const FLAG_GAP_BAR:    u8 = 0b00100000; // 32: 缺口棒 (与均线完全脱离)
 };
+
+pub fn extract_attributes_universal(
+    ctx: *QuantContext,
+    comptime extractors: anytype // 接收如 .{TrendExtractor, DojiExtractor}
+) void {
+    const Vec4f = @Vector(4, f32);
+    const Vec4u = @Vector(4, u8);
+
+    const count = ctx.count;
+    var i: usize = 0;
+
+    // 🌟 核心：一次搬运，多次计算
+    while (i + 4 <= count) : (i += 4) {
+        // 1. 批量加载到寄存器 (SIMD Load)
+        const v_o: Vec4f = ctx.opens[i..][0..4].*;
+        const v_h: Vec4f = ctx.highs[i..][0..4].*;
+        const v_l: Vec4f = ctx.lows[i..][0..4].*;
+        const v_c: Vec4f = ctx.closes[i..][0..4].*;
+
+        var v_attr: Vec4u = @splat(0);
+
+        // 2. 编译时静态展开 (Zero Overhead)
+        inline for (extractors) |Extractor| {
+            const mask = Extractor.check(v_o, v_c, v_h, v_l);
+            // 使用 @select 批量打标
+            v_attr |= @select(
+                u8,
+                mask,
+                @as(Vec4u, @splat(Extractor.flag)),
+                @as(Vec4u, @splat(0))
+            );
+        }
+
+        // 3. 一次性写回内存
+        ctx.attributes[i..][0..4].* = v_attr;
+    }
+
+    // --- 2. 🌟 通用化尾部处理 ---
+        // 利用同样的 inline for，但这次传入的是标量数据
+    for (i..count) |j| {
+        var attr: u8 = 0;
+        inline for (extractors) |Extractor| {
+            // 这里 check 会自动生成标量版的机器码
+            if (Extractor.check(ctx.opens[j], ctx.closes[j], ctx.highs[j], ctx.lows[j])) {
+                attr |= Extractor.flag;
+            }
+        }
+        ctx.attributes[j] = attr;
+    }
+}
 
 pub fn extract_bar_attributes(
     opens: [*]const f32,
