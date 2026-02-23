@@ -55,3 +55,58 @@ pub fn extract_bar_attributes(
         attr[i] = flag;
     }
 }
+
+pub fn extract_ema_attributes(
+    highs: []const f32,
+    lows: []const f32,
+    emas: []const f32,
+    attributes: []u8,
+) void {
+    const Vec4f = @Vector(4, f32);
+    const Vec4u = @Vector(4, u8);
+    var i: usize = 0;
+
+    // 🌟 SIMD 主循环：一次处理 4 根 K 线
+    while (i + 4 <= highs.len) : (i += 4) {
+        const v_h: Vec4f = highs[i..][0..4].*;
+        const v_l: Vec4f = lows[i..][0..4].*;
+        const v_e: Vec4f = emas[i..][0..4].*;
+
+        // 1. 计算 TOUCH: (Low <= EMA) AND (High >= EMA)
+        const touch_mask = (v_l <= v_e) & (v_h >= v_e);
+
+        // 2. 计算 GAP: (Low > EMA) OR (High < EMA)
+        const gap_mask = (v_l > v_e) | (v_h < v_e);
+
+        // 3. 将布尔掩码转换为定义的 Bit Flags
+        // 如果真则赋予对应的 Flag 值，否则为 0
+        var v_attr: Vec4u = attributes[i..][0..4].*;
+
+        v_attr |= @select(
+            u8,
+            touch_mask,
+            @as(Vec4u, @splat(Flags.FLAG_TOUCH_EMA)),
+            @as(Vec4u, @splat(0))
+        );
+
+        v_attr |= @select(
+            u8,
+            gap_mask,
+            @as(Vec4u, @splat(Flags.FLAG_GAP_BAR)),
+            @as(Vec4u, @splat(0))
+        );
+
+        // 写回内存
+        attributes[i..][0..4].* = v_attr;
+    }
+
+    // 🌟 尾部处理：处理剩余不足 4 个的数据 (Tail Handling)
+    for (i..highs.len) |j| {
+        if (lows[j] <= emas[j] and highs[j] >= emas[j]) {
+            attributes[j] |= Flags.FLAG_TOUCH_EMA;
+        }
+        if (lows[j] > emas[j] or highs[j] < emas[j]) {
+            attributes[j] |= Flags.FLAG_GAP_BAR;
+        }
+    }
+}
