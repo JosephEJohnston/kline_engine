@@ -81,9 +81,7 @@ pub export fn run_analysis(
         .{
             analyzer.PA_Extractors.TrendUp,
             analyzer.PA_Extractors.TrendDown,
-            analyzer.PA_Extractors.Doji,
-            analyzer.PA_Extractors.TouchEMA,
-            analyzer.PA_Extractors.GapBar,
+            analyzer.PA_Extractors.Doji
         }
     );
 
