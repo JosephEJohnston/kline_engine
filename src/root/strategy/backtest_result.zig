@@ -64,3 +64,21 @@ pub const BacktestResult = struct {
         self.count += 1;
     }
 };
+
+// 专门为 WASM 传输定义的瘦结构体（不含 Slice，全是原始指针）
+pub const BacktestResultWasm = extern struct {
+    entry_indices_ptr: [*]usize,
+    exit_indices_ptr:  [*]usize,
+    entry_prices_ptr:  [*]f32,
+    exit_prices_ptr:   [*]f32,
+    profits_ptr:       [*]f32,
+
+    // 计数与容量 (各占 4 字节)
+    count:             usize,
+    capacity:          usize,  // 🌟 新增：总分配空间
+    win_count:         usize,  // 🌟 新增：盈利笔数
+
+    // 统计指标 (各占 4 字节)
+    total_profit:      f32,
+    max_drawdown:      f32,
+};

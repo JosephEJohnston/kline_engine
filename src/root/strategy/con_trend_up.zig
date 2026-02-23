@@ -2,9 +2,9 @@ const QuantContext = @import("../quant_context.zig").QuantContext;
 const BacktestResult = @import("backtest_result.zig").BacktestResult;
 const Flags = @import("../analyzer.zig").Flags;
 
-pub fn backtest_consecutive_trend_up(
+pub fn consecutive_trend_up(
     ctx: *QuantContext,
-    comptime n: usize,
+    n: usize,
     result: *BacktestResult, // 传入预分配好的结果集
 ) void {
     var up_streak: usize = 0;
