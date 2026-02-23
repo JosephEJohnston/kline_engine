@@ -96,19 +96,16 @@ export fn backtest_consecutive_trend_up(
     ctx_ptr: *QuantContext,
     n: usize
 ) ?*const br.BacktestResultWasm {
-    // 1. 重置 Arena，准备新一轮内存申请
-    _ = arena.reset(.retain_capacity);
-    const allocator = arena.allocator();
 
     // 2. 初始化回测结果 (存放在 Arena)
-    var res = br.BacktestResult.init(allocator, 5000)
+    var res = br.BacktestResult.init(totalAllocator, 5000)
         catch return null;
 
     // 3. 执行 PA 策略逻辑 (连续阳线扫描)
     ctu.consecutive_trend_up(ctx_ptr, n, &res);
 
     // 4. 🌟 在 Arena 上动态分配“描述符”
-    const descriptor = allocator.create(br.BacktestResultWasm)
+    const descriptor = totalAllocator.create(br.BacktestResultWasm)
         catch return null;
 
     // 5. 填充描述符 (将胖切片转为瘦指针)
