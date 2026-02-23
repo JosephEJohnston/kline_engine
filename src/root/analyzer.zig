@@ -12,6 +12,93 @@ pub const Flags = struct {
     pub const FLAG_GAP_BAR:    u8 = 0b00100000; // 32: 缺口棒 (与均线完全脱离)
 };
 
+pub const PA_Extractors = struct {
+    // 1. 强阳线算子
+    pub const TrendUp = struct {
+        pub const flag = Flags.FLAG_TREND_UP;
+        pub fn check(o: anytype, c: anytype, _: anytype, _: anytype, _: anytype) @TypeOf(o > c) {
+            return c > o; // 基础逻辑，可后续加入实体比例判断
+        }
+    };
+
+    // 2. 强阴线算子
+    pub const TrendDown = struct {
+        pub const flag = Flags.FLAG_TREND_DOWN;
+        pub fn check(o: anytype, c: anytype, _: anytype, _: anytype, _: anytype) @TypeOf(o > c) {
+            return c < o;
+        }
+    };
+
+    // 3. 十字星算子 (Al Brooks: 实体极小或无实体)
+    pub const Doji = struct {
+        pub const flag = Flags.FLAG_DOJI;
+        pub fn check(o: anytype, c: anytype, h: anytype, l: anytype, _: anytype) @TypeOf(o > c) {
+            const body = if (@TypeOf(o) == f32) @abs(c - o) else @abs(c - o);
+            const range = h - l;
+            const threshold = if (@TypeOf(o) == f32) 0.1 else @as(@TypeOf(o), @splat(0.1));
+            // 实体小于全长的 10% 视为 Doji
+            return body < (range * threshold);
+        }
+    };
+
+    // 4. 触碰均线算子
+    pub const TouchEMA = struct {
+        pub const flag = Flags.FLAG_TOUCH_EMA;
+        pub fn check(_: anytype, _: anytype, h: anytype, l: anytype, ema: anytype) @TypeOf(h > l) {
+            return (l <= ema) & (h >= ema);
+        }
+    };
+
+    // 5. 缺口棒算子 (完全脱离均线)
+    pub const GapBar = struct {
+        pub const flag = Flags.FLAG_GAP_BAR;
+        pub fn check(_: anytype, _: anytype, h: anytype, l: anytype, ema: anytype) @TypeOf(h > l) {
+            return (l > ema) | (h < ema);
+        }
+    };
+};
+
+pub fn extract_inside_bars(ctx: *QuantContext) void {
+    const count = ctx.count;
+    // 如果不足两根，物理上不可能存在 Inside Bar
+    if (count < 2) return;
+
+    var i: usize = 1;
+
+    const Vec4f = @Vector(4, f32);
+    const Vec4u = @Vector(4, u8);
+
+    // --- 1. SIMD 主大路 (128-bit 向量化) ---
+    // 每次处理 4 根，直到剩余不足 4 根为止
+    while (i + 4 <= count) : (i += 4) {
+        const v_h: Vec4f = ctx.highs[i..][0..4].*;
+        const v_l: Vec4f = ctx.lows[i..][0..4].*;
+        // 关键点：i-1 实现了跨棒线读取
+        const v_ph: Vec4f = ctx.highs[i - 1 ..][0..4].*;
+        const v_pl: Vec4f = ctx.lows[i - 1 ..][0..4].*;
+
+        // 计算掩码：当前高 <= 前高 AND 当前低 >= 前低
+        const mask = (v_h <= v_ph) & (v_l >= v_pl);
+
+        // 🌟 必须先加载原有属性，以免覆盖掉之前的 FLAG_TREND 等标签
+        var v_attr: Vec4u = ctx.attributes[i..][0..4].*;
+        v_attr |= @select(u8, mask, @as(Vec4u, @splat(Flags.FLAG_INSIDE)), @as(Vec4u, @splat(0)));
+
+        // 写回内存
+        ctx.attributes[i..][0..4].* = v_attr;
+    }
+
+    // --- 2. 🌟 尾部处理 (Scalar Tail Handling) ---
+    // 处理剩余的 j 根数据 (j 属于 [0, 3])
+    // 这里的 i 已经停在最后一个 4 倍数对齐的位置
+    for (i..count) |j| {
+        // 标量逻辑：简单、直接、稳健
+        if (ctx.highs[j] <= ctx.highs[j - 1] and ctx.lows[j] >= ctx.lows[j - 1]) {
+            ctx.attributes[j] |= Flags.FLAG_INSIDE;
+        }
+    }
+}
+
 pub fn extract_attributes_universal(
     ctx: *QuantContext,
     comptime extractors: anytype // 接收如 .{TrendExtractor, DojiExtractor}
@@ -62,102 +149,3 @@ pub fn extract_attributes_universal(
     }
 }
 
-pub fn extract_bar_attributes(
-    opens: [*]const f32,
-    highs: [*]const f32,
-    lows: [*]const f32,
-    closes: [*]const f32,
-    len: usize,
-    attr_ptr: [*]u8
-) void {
-    const attr = attr_ptr[0..len];
-
-    var i: usize = 0;
-    while (i < len) : (i += 1) {
-        var flag: u8 = 0;
-        const body_size = @abs(closes[i] - opens[i]);
-        const total_range = highs[i] - lows[i];
-
-        // 防止除以零
-        const range_safe = if (total_range == 0) 0.00001
-            else total_range;
-
-        // 1. 识别趋势棒 (实体大于全长的 50%)
-        if (body_size / range_safe > 0.5) {
-            if (closes[i] > opens[i]) {
-                flag |= Flags.FLAG_TREND_UP;
-            } else {
-                flag |= Flags.FLAG_TREND_DOWN;
-            }
-        }
-
-        // 2. 识别十字星 (实体小于全长的 10%)
-        if (body_size / range_safe < 0.1) {
-            flag |= Flags.FLAG_DOJI;
-        }
-
-        // 3. 识别内包棒 (依赖前一根 K 线 n-1)
-        if (i > 0) {
-            if (highs[i] < highs[i-1] and lows[i] > lows[i-1]) {
-                flag |= Flags.FLAG_INSIDE;
-            }
-        }
-
-        attr[i] = flag;
-    }
-}
-
-pub fn extract_ema_attributes(
-    highs: []const f32,
-    lows: []const f32,
-    emas: []const f32,
-    attributes: []u8,
-) void {
-    const Vec4f = @Vector(4, f32);
-    const Vec4u = @Vector(4, u8);
-    var i: usize = 0;
-
-    // 🌟 SIMD 主循环：一次处理 4 根 K 线
-    while (i + 4 <= highs.len) : (i += 4) {
-        const v_h: Vec4f = highs[i..][0..4].*;
-        const v_l: Vec4f = lows[i..][0..4].*;
-        const v_e: Vec4f = emas[i..][0..4].*;
-
-        // 1. 计算 TOUCH: (Low <= EMA) AND (High >= EMA)
-        const touch_mask = (v_l <= v_e) & (v_h >= v_e);
-
-        // 2. 计算 GAP: (Low > EMA) OR (High < EMA)
-        const gap_mask = (v_l > v_e) | (v_h < v_e);
-
-        // 3. 将布尔掩码转换为定义的 Bit Flags
-        // 如果真则赋予对应的 Flag 值，否则为 0
-        var v_attr: Vec4u = attributes[i..][0..4].*;
-
-        v_attr |= @select(
-            u8,
-            touch_mask,
-            @as(Vec4u, @splat(Flags.FLAG_TOUCH_EMA)),
-            @as(Vec4u, @splat(0))
-        );
-
-        v_attr |= @select(
-            u8,
-            gap_mask,
-            @as(Vec4u, @splat(Flags.FLAG_GAP_BAR)),
-            @as(Vec4u, @splat(0))
-        );
-
-        // 写回内存
-        attributes[i..][0..4].* = v_attr;
-    }
-
-    // 🌟 尾部处理：处理剩余不足 4 个的数据 (Tail Handling)
-    for (i..highs.len) |j| {
-        if (lows[j] <= emas[j] and highs[j] >= emas[j]) {
-            attributes[j] |= Flags.FLAG_TOUCH_EMA;
-        }
-        if (lows[j] > emas[j] or highs[j] < emas[j]) {
-            attributes[j] |= Flags.FLAG_GAP_BAR;
-        }
-    }
-}
