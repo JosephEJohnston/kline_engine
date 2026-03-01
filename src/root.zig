@@ -6,9 +6,9 @@ const pc = @import("root/parse_csv.zig");
 const Bar = @import("root/bar.zig").Bar;
 const ParseConfig = @import("root/bar.zig").ParseConfig;
 const analyzer = @import("root/analyzer.zig");
-const QuantContext = @import("root/quant_context.zig").QuantContext;
-const Flags = @import("root/analyzer.zig").Flags;
-const br = @import("root/strategy/backtest_result.zig");
+pub const QuantContext = @import("root/quant_context.zig").QuantContext;
+pub const Flags = @import("root/analyzer.zig").Flags;
+pub const br = @import("root/strategy/backtest_result.zig");
 
 // 导出解析函数：返回解析后的 Bar 数组指针
 // 注意：为了简单，我们把长度存给一个全局变量或通过指针返回
@@ -16,7 +16,7 @@ var last_parse_count: usize = 0;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var arena = std.heap.ArenaAllocator.init(gpa.allocator());
-const totalAllocator = arena.allocator();
+pub const totalAllocator = arena.allocator();
 
 // 导出分配函数：让 JS 知道去哪里申请内存放 CSV 字符串
 pub export fn alloc_memory(len: usize) [*]u8 {
