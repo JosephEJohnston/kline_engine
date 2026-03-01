@@ -7,6 +7,7 @@ const Bar = @import("root/bar.zig").Bar;
 const ParseConfig = @import("root/bar.zig").ParseConfig;
 const analyzer = @import("root/analyzer.zig");
 const QuantContext = @import("root/quant_context.zig").QuantContext;
+const Flags = @import("root/analyzer.zig").Flags;
 const br = @import("root/strategy/backtest_result.zig");
 
 // 导出解析函数：返回解析后的 Bar 数组指针
