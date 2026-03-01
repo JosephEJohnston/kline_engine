@@ -13,9 +13,32 @@ pub const QuantContext = struct {
     // 2. 属性标记 (1 字节掩码)
     attributes: [*]u8,
 
-    // 3. 元数据
+    // 2. 元数据与内存管理
     count: usize,
     capacity: usize,
+    allocator: std.mem.Allocator,
+
+    // 3. 🌟 通用指标池
+    indicators: std.StringArrayHashMap([]f32),
+
+    /// 注册并分配一个新的指标空间 (如 "ema20")
+    /// 返回分配好的切片，供计算逻辑直接写入
+    pub fn registerIndicator(self: *QuantContext, name: []const u8) ![]f32 {
+        // 如果已存在则直接返回
+        if (self.indicators.get(name)) |existing| return existing;
+
+        // 为新指标分配与 K 线数量等长的内存
+        const buffer = try self.allocator.alloc(f32, self.count);
+        @memset(buffer, 0);
+
+        try self.indicators.put(name, buffer);
+        return buffer;
+    }
+
+    /// 获取指标切片
+    pub fn getIndicator(self: *const QuantContext, name: []const u8) ?[]f32 {
+        return self.indicators.get(name);
+    }
 
     /// 核心方法：根据索引获取“虚拟”的 K 线视图
     /// 虽然内存是打散的，但逻辑上你还是可以像 Java 里的对象一样访问它
@@ -100,15 +123,14 @@ pub const QuantContext = struct {
 };
 
 pub fn create_context(allocator: std.mem.Allocator, count: usize) !*QuantContext {
-    // 1. 计算各部分所需字节 (严格考虑对齐)
-    const time_size = count * @sizeOf(i64);    // 8字节对齐
-    const float_size = count * @sizeOf(f32);   // 4字节对齐
-    const attr_size = count * @sizeOf(u8);     // 1字节对齐
+    // 1. 计算内存布局
+    const time_size = count * @sizeOf(i64);
+    const float_size = count * @sizeOf(f32);
+    const attr_size = count * @sizeOf(u8);
 
-    // 总布局：[Time] (8-byte align) | [Open] | [High] | [Low] | [Close] | [Vol] | [Attr]
     const total_bytes = time_size + (float_size * 5) + attr_size;
 
-    // 2. 一次性申请整块内存
+    // 2. 申请价格数据主内存
     const raw_mem = try allocator.alignedAlloc(
         u8,
         std.mem.Alignment.@"16",
@@ -116,10 +138,14 @@ pub fn create_context(allocator: std.mem.Allocator, count: usize) !*QuantContext
     );
     const base = raw_mem.ptr;
 
-    // 3. 为结构体本身申请空间
+    // 3. 申请并初始化结构体
     const ctx = try allocator.create(QuantContext);
 
-    // 4. “切分”领地
+    // 初始化指标池（必须传入 allocator）
+    ctx.indicators = std.StringArrayHashMap([]f32).init(allocator);
+    ctx.allocator = allocator;
+
+    // 4. 指针切分
     ctx.time = @ptrCast(@alignCast(base));
     ctx.open = @ptrCast(@alignCast(base + time_size));
     ctx.high = @ptrCast(@alignCast(base + time_size + float_size));
