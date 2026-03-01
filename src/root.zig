@@ -90,3 +90,26 @@ pub export fn run_analysis(
     analyzer.extract_inside_bars(ctx);
 
 }
+
+// --- 通用指标池导出接口 ---
+/// 返回当前上下文已注册的指标总数
+///
+pub export fn get_indicator_count(ctx: *const QuantContext) usize {
+    return ctx.indicators.count();
+}
+
+/// 获取第 index 个指标的名称，并将名称写入 buf_ptr，返回实际长度
+pub export fn get_indicator_name(ctx: *const QuantContext, index: usize, buf_ptr: [*]u8) usize {
+    const name = ctx.indicators.keys()[index];
+    @memcpy(buf_ptr[0..name.len], name);
+    return name.len;
+}
+
+/// 根据指标名称字符串获取其数据内存首地址
+pub export fn get_indicator_ptr(ctx: *const QuantContext, name_ptr: [*]const u8, name_len: usize) ?[*]f32 {
+    const name = name_ptr[0..name_len];
+    if (ctx.getIndicator(name)) |slice| {
+        return slice.ptr;
+    }
+    return null;
+}
