@@ -8,7 +8,6 @@ const ParseConfig = @import("root/bar.zig").ParseConfig;
 const analyzer = @import("root/analyzer.zig");
 const QuantContext = @import("root/quant_context.zig").QuantContext;
 const br = @import("root/strategy/backtest_result.zig");
-const ctu = @import("root/strategy/con_trend_up.zig");
 
 // 导出解析函数：返回解析后的 Bar 数组指针
 // 注意：为了简单，我们把长度存给一个全局变量或通过指针返回
@@ -89,39 +88,4 @@ pub export fn run_analysis(
 
     analyzer.extract_inside_bars(ctx);
 
-}
-
-// 连续阳线策略回测
-export fn backtest_consecutive_trend_up(
-    ctx_ptr: *QuantContext,
-    n: usize
-) ?*const br.BacktestResultWasm {
-
-    // 2. 初始化回测结果 (存放在 Arena)
-    var res = br.BacktestResult.init(totalAllocator, 5000)
-        catch return null;
-
-    // 3. 执行 PA 策略逻辑 (连续阳线扫描)
-    ctu.consecutive_trend_up(ctx_ptr, n, &res);
-
-    // 4. 🌟 在 Arena 上动态分配“描述符”
-    const descriptor = totalAllocator.create(br.BacktestResultWasm)
-        catch return null;
-
-    // 5. 填充描述符 (将胖切片转为瘦指针)
-    descriptor.* = .{
-        .entry_indices_ptr = res.entry_indices.ptr,
-        .exit_indices_ptr  = res.exit_indices.ptr,
-        .entry_prices_ptr  = res.entry_prices.ptr,
-        .exit_prices_ptr   = res.exit_prices.ptr,
-        .profits_ptr       = res.profits.ptr,
-        .count             = res.count,
-        .capacity          = res.capacity,
-        .win_count         = res.win_count,
-        .total_profit      = res.total_profit,
-        .max_drawdown      = res.max_drawdown,
-    };
-
-    // 返回动态生成的描述符指针
-    return descriptor;
 }
