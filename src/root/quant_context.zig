@@ -12,6 +12,7 @@ pub const QuantContext = struct {
 
     // 2. 属性标记 (1 字节掩码)
     attributes: [*]u8,
+    raw_mem: []align(16) u8,
 
     // 2. 元数据与内存管理
     count: usize,
@@ -120,6 +121,24 @@ pub const QuantContext = struct {
     pub inline fn getTimeSlice(self: QuantContext) []i64 {
         return self.time[0..self.count];
     }
+
+    pub fn deinit(self: *QuantContext) void {
+        var it = self.indicators.iterator();
+
+        // 2. 循环提取每一个 Entry
+        while (it.next()) |entry| {
+            // entry.value_ptr.* 获取的是 []f32 切片 [cite: 16]
+            // 使用创建时存储的 allocator 进行释放 [cite: 18-19]
+            self.allocator.free(entry.value_ptr.*);
+        }
+
+        // 1. 先还哈希表的内存
+        self.indicators.deinit();
+        // 2. 再还大块 SOA 数据内存
+        self.allocator.free(self.raw_mem);
+        // 3. 最后销毁结构体自己
+        self.allocator.destroy(self);
+    }
 };
 
 pub fn create_context(allocator: std.mem.Allocator, count: usize) !*QuantContext {
@@ -130,16 +149,16 @@ pub fn create_context(allocator: std.mem.Allocator, count: usize) !*QuantContext
 
     const total_bytes = time_size + (float_size * 5) + attr_size;
 
-    // 2. 申请价格数据主内存
-    const raw_mem = try allocator.alignedAlloc(
+    // 3. 申请并初始化结构体
+    const ctx = try allocator.create(QuantContext);
+
+    ctx.raw_mem = try allocator.alignedAlloc(
         u8,
         std.mem.Alignment.@"16",
         total_bytes
     );
-    const base = raw_mem.ptr;
 
-    // 3. 申请并初始化结构体
-    const ctx = try allocator.create(QuantContext);
+    const base = ctx.raw_mem.ptr;
 
     // 初始化指标池（必须传入 allocator）
     ctx.indicators = std.StringArrayHashMap([]f32).init(allocator);

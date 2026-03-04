@@ -7,6 +7,7 @@ const Bar = @import("root/bar.zig").Bar;
 const ParseConfig = @import("root/bar.zig").ParseConfig;
 const analyzer = @import("root/analyzer.zig");
 pub const QuantContext = @import("root/quant_context.zig").QuantContext;
+pub const create_context = @import("root/quant_context.zig").create_context;
 pub const Flags = @import("root/analyzer.zig").Flags;
 pub const br = @import("root/strategy/backtest_result.zig");
 
